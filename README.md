@@ -13,7 +13,9 @@ The purpose of this script is to streamline the workflow for running Rosetta doc
 
 ## Prerequisites
 
-To run this script, you need the following software installed on your system:
+To run this script, you need the following software and files installed and properly configured on your system:
+
+### Software Requirements
 
 1. **Open Babel:** A chemical toolbox designed to speak the many languages of chemical data.
    - Install Open Babel using package managers:
@@ -22,12 +24,22 @@ To run this script, you need the following software installed on your system:
    - Alternatively, you can compile and install Open Babel locally if you don't have sudo permissions. See the [Open Babel installation guide](https://openbabel.org/wiki/Category:Installation).
 
 2. **Rosetta Software Suite:** A comprehensive software suite for macromolecular modeling.
-   - Make sure you have compiled Rosetta and have the `docking_prepack_protocol` executable available.
+   - Ensure you have compiled Rosetta and have the `docking_prepack_protocol` executable available.
    - Refer to the [Rosetta installation guide](https://www.rosettacommons.org/software/license-and-download) for detailed instructions.
 
 3. **Zip Utility:** Ensure you have the `unzip` utility installed to extract zip files.
    - On Ubuntu/Debian: `sudo apt-get install unzip`
    - On macOS: `brew install unzip`
+
+### File Requirements
+
+1. **a_syn1.pdb and a_syn2.pdb Files:**
+   - These are predefined PDB files required for combining with the converted CIF files.
+   - Ensure these files are located in the correct directory specified in the script (e.g., `/global/home/hpc5497/a_syn/a_syn1.pdb` and `/global/home/hpc5497/a_syn/a_syn2.pdb`).
+
+2. **Input Folder with Zip Files:**
+   - Prepare an input folder (`zip_files`) containing zip files. Each zip file should contain CIF files that will be converted to PDB format.
+   - The script assumes this folder is located at `/global/home/hpc5497/zip_files`.
 
 ## Running the Script on Rocky Linux
 
