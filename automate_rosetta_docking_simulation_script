@@ -1,0 +1,133 @@
+#!/bin/bash
+
+# Check if obabel is installed
+if ! command -v obabel &> /dev/null; then
+    echo "obabel could not be found. Please install Open Babel to proceed."
+    exit 1
+fi
+
+# Directory containing the zip files
+zip_dir="/global/home/hpc5497/zip_files"
+# Directory where the zip files will be extracted
+extract_dir="/global/home/hpc5497/extracted_files/"
+# Directory to store the converted PDB files
+pdb_input_dir="/global/home/hpc5497/pdb_input/"
+# Directory to store the combined PDB files
+pdb_combined_dir="/global/home/hpc5497/pdb_combined_input/"
+# Directory for Rosetta docking outputs
+rosetta_output_dir="/global/home/hpc5497/output/"
+# Paths to asyn1.pdb and asyn2.pdb files
+asyn1_pdb="/global/home/hpc5497/a_syn/a_syn1.pdb"
+asyn2_pdb="/global/home/hpc5497/a_syn/a_syn2.pdb"
+# Path to Rosetta source
+rosetta_source_dir="/global/home/hpc5497/rosetta.source.release-340/main/source"
+
+# Check if the output directory exists
+if [ -d "${rosetta_output_dir}" ]; then
+    read -p "The output directory ${rosetta_output_dir} already exists. Do you want to proceed and delete it? (y/n): " choice
+    case "$choice" in 
+      y|Y ) rm -rf "${rosetta_output_dir}"
+            echo "Output directory deleted. Proceeding...";;
+      n|N ) echo "Exiting script."
+            exit 0;;
+      * ) echo "Invalid choice. Exiting script."
+          exit 1;;
+    esac
+fi
+
+# Create the output directory
+mkdir -p "${rosetta_output_dir}"
+
+# Enter the directory
+cd "${zip_dir}" || { echo "Directory not found: ${zip_dir}"; exit 1; }
+
+echo "Entered directory: ${zip_dir}"
+
+# Create the extraction, pdb input, and pdb combined directories if they do not exist
+mkdir -p "${extract_dir}"
+mkdir -p "${pdb_input_dir}"
+mkdir -p "${pdb_combined_dir}"
+
+# Loop through each zip file in the directory
+for zip_file in *.zip; do
+    # Get the base name of the zip file (without extension)
+    base_name=$(basename "${zip_file}" .zip)
+    # Create a directory with the same name as the zip file
+    target_dir="${extract_dir}/${base_name}"
+    mkdir -p "${target_dir}"
+    
+    # Extract the zip file into the target directory
+    unzip "${zip_file}" -d "${target_dir}"
+    
+    echo "Extracted ${zip_file} into ${target_dir}"
+done
+
+echo "All zip files have been extracted."
+
+# Loop through each folder in the extract_dir
+for folder in "${extract_dir}"/*; do
+    # Find the CIF file that contains 'model_0' in its name
+    cif_file=$(find "${folder}" -type f -name '*model_0*.cif')
+    
+    if [[ -n "${cif_file}" ]]; then
+        # Get the base name of the CIF file (without extension)
+        base_name=$(basename "${cif_file}" .cif)
+        # Define the output PDB file path
+        pdb_file="${pdb_input_dir}/${base_name}.pdb"
+        
+        # Convert CIF to PDB using obabel
+        obabel -icif "${cif_file}" -opdb -O "${pdb_file}"
+        
+        echo "Converted ${cif_file} to ${pdb_file}"
+    else
+        echo "No model_0 CIF file found in ${folder}"
+    fi
+done
+
+echo "All CIF files have been processed."
+
+# Combine each PDB file with asyn1.pdb and asyn2.pdb
+for pdb_file in "${pdb_input_dir}"/*.pdb; do
+    # Get the base name of the PDB file (without extension)
+    base_name=$(basename "${pdb_file}" .pdb)
+    
+    # Skip asyn1.pdb and asyn2.pdb
+    if [[ "${base_name}" != "asyn1" && "${base_name}" != "asyn2" ]]; then
+        combined_pdb_file="${pdb_combined_dir}/${base_name}_combined.pdb"
+        
+        # Combine PDB files
+        cat "${pdb_file}" "${asyn1_pdb}" "${asyn2_pdb}" > "${combined_pdb_file}"
+        
+        echo "Combined ${pdb_file}, ${asyn1_pdb}, and ${asyn2_pdb} into ${combined_pdb_file}"
+    fi
+done
+
+echo "All PDB files have been combined."
+
+# Change to the Rosetta source directory
+cd "${rosetta_source_dir}" || { echo "Rosetta source directory not found: ${rosetta_source_dir}"; exit 1; }
+
+# Run docking simulation on each combined PDB file
+for combined_pdb_file in "${pdb_combined_dir}"/*.pdb; do
+    # Get the base name of the combined PDB file (without extension)
+    base_name=$(basename "${combined_pdb_file}" .pdb)
+    # Define the output directory for this docking run
+    docking_output_dir="${rosetta_output_dir}/${base_name}_output"
+    
+    # Create the output directory for this docking run
+    mkdir -p "${docking_output_dir}"
+    
+    # Run the docking simulation
+    ./bin/docking_prepack_protocol.default.linuxgccrelease -s "${combined_pdb_file}" -nstruct 1 -out:path:all "${docking_output_dir}"
+    
+    echo "Ran docking simulation on ${combined_pdb_file}, output to ${docking_output_dir}"
+done
+
+echo "All docking simulations have been run."
+
+# Cleanup: Remove all directories except the final output folder
+rm -rf "${extract_dir}"
+rm -rf "${pdb_input_dir}"
+rm -rf "${pdb_combined_dir}"
+
+echo "Cleaned up all intermediate directories, keeping only the final output folder."
