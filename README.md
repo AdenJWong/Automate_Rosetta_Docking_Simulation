@@ -50,3 +50,10 @@ To run this script, you need the following software and files installed and prop
 
    ```bash
    sudo dnf install epel-release
+
+2. - Add Open Babel to PATH
+
+   ```bash
+   export PATH=$HOME/openbabel/bin:$PATH
+   export LD_LIBRARY_PATH=$HOME/openbabel/lib:$LD_LIBRARY_PATH
+
